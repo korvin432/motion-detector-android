@@ -280,7 +280,7 @@ public class MotionDetector {
             try {
                 FileOutputStream fos = new FileOutputStream(pictureFile);
                 fos.write(data);
-                Toast.makeText(mContext, "taken photo on" + fos.toString(), Toast.LENGTH_SHORT).show();
+                //Toast.makeText(mContext, "taken photo on" + fos.toString(), Toast.LENGTH_SHORT).show();
                 fos.close();
             } catch (FileNotFoundException e) {
                 Toast.makeText(mContext, "file not found", Toast.LENGTH_SHORT).show();
