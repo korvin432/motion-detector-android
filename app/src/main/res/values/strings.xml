@@ -1,3 +1,8 @@
 <resources>
-    <string name="app_name">Bewegungsmelder</string>
+    <string name="app_name">Motion Detector</string>
+    <string name="check_interval">Check interval</string>
+    <string name="leniency">Leniency</string>
+    <string name="minluma">MinLuma</string>
+    <string name="apply">Apply</string>
+    <string name="start">Start</string>
 </resources>

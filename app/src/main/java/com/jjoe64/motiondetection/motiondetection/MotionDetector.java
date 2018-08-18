@@ -1,20 +1,35 @@
 package com.jjoe64.motiondetection.motiondetection;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
+import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.Toast;
 
+import com.jjoe64.motiondetection.OpenActivity;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class MotionDetector {
+    public static String filePath;
     class MotionDetectorThread extends Thread {
+
+
         private AtomicBoolean isRunning = new AtomicBoolean(true);
 
         public void stopDetection() {
@@ -47,13 +62,21 @@ public class MotionDetector {
                             }
                         } else if (detector.detect(img, nextWidth.get(), nextHeight.get())) {
                             // check
-                            if (motionDetectorCallback != null) {
-                                mHandler.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        motionDetectorCallback.onMotionDetected();
-                                    }
-                                });
+                            try {
+                                mCamera.takePicture(null, null, mPicture);
+                                if (motionDetectorCallback != null) {
+                                    mCamera.cancelAutoFocus();
+                                    mHandler.post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            motionDetectorCallback.onMotionDetected();
+
+
+                                        }
+                                    });
+                                }
+                            } catch (Exception e){
+
                             }
                         }
                     }
@@ -79,7 +102,7 @@ public class MotionDetector {
     private int minLuma = 1000;
     private MotionDetectorThread worker;
 
-    private Camera mCamera;
+    public Camera mCamera;
     private boolean inPreview;
     private SurfaceHolder previewHolder;
     private Context mContext;
@@ -115,7 +138,16 @@ public class MotionDetector {
 
     public void onResume() {
         if (checkCameraHardware()) {
+
+            OpenActivity op = new OpenActivity();
+
             mCamera = getCameraInstance();
+
+            Camera.Parameters params = mCamera.getParameters();
+            params.setZoom(params.getMaxZoom()-op.getNew_zoom());
+            params.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+            mCamera.setParameters(params);
+
 
             worker = new MotionDetectorThread();
             worker.start();
@@ -143,7 +175,7 @@ public class MotionDetector {
         try {
             if (Camera.getNumberOfCameras() >= 2) {
                 //if you want to open front facing camera use this line
-                c = Camera.open(Camera.CameraInfo.CAMERA_FACING_FRONT);
+                c = Camera.open(Camera.CameraInfo.CAMERA_FACING_BACK);
             } else {
                 c = Camera.open();
             }
@@ -231,9 +263,68 @@ public class MotionDetector {
     }
 
     public void onPause() {
+        //Toast.makeText(mContext, "Going on pause", Toast.LENGTH_SHORT).show();
+
         releaseCamera();
         if (previewHolder != null) previewHolder.removeCallback(surfaceCallback);
         if (worker != null) worker.stopDetection();
+    }
+
+    public Camera.PictureCallback mPicture = new Camera.PictureCallback() {
+
+        @Override
+        public void onPictureTaken(byte[] data, Camera camera) {
+
+            File pictureFile = getOutputMediaFile(1);
+
+            try {
+                FileOutputStream fos = new FileOutputStream(pictureFile);
+                fos.write(data);
+                Toast.makeText(mContext, "taken photo on" + fos.toString(), Toast.LENGTH_SHORT).show();
+                fos.close();
+            } catch (FileNotFoundException e) {
+                Toast.makeText(mContext, "file not found", Toast.LENGTH_SHORT).show();
+                Log.d("===", "File not found: " + e.getMessage());
+            } catch (IOException e) {
+                Toast.makeText(mContext, "idk what happened", Toast.LENGTH_SHORT).show();
+                Log.d("===", "Error accessing file: " + e.getMessage());
+            }
+        }
+    };
+
+    private static File getOutputMediaFile(int type){
+        // To be safe, you should check that the SDCard is mounted
+        // using Environment.getExternalStorageState() before doing this.
+
+        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES), "MyCameraApp");
+        // This location works best if you want the created images to be shared
+        // between applications and persist after your app has been uninstalled.
+
+        // Create the storage directory if it does not exist
+        if (! mediaStorageDir.exists()){
+            if (! mediaStorageDir.mkdirs()){
+                Log.d("MyCameraApp", "failed to create directory");
+                return null;
+            }
+        }
+
+        // Create a media file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        File mediaFile;
+        if (type == 1){
+            String fileName = mediaStorageDir.getPath() + File.separator +
+                    "IMG_" + timeStamp + ".jpg";
+            mediaFile = new File(fileName);
+            //filePath = fileName;
+        }
+        else {
+            return null;
+        }
+
+
+
+        return mediaFile;
     }
 
     private void releaseCamera(){
